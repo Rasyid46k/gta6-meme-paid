@@ -13,15 +13,25 @@
 // /bot and /output:
 //   mkdir -p out && MAKEFUN_BOT_DIR=. MAKEFUN_OUTPUT_DIR=out node main.ts
 
-import { copyFileSync, mkdirSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const BOT_DIR = process.env.MAKEFUN_BOT_DIR ?? '/bot';
 const OUTPUT_DIR = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
 
+// The post's address must be a real X status address, never the starter placeholder:
+// https://x.com/<handle>/status/<id> (or the same on twitter.com), the id digits only.
+const POST_URL = /^https:\/\/(x\.com|twitter\.com)\/[^/]+\/status\/\d+$/;
+const postPath = join(BOT_DIR, 'POST.json');
+const post = JSON.parse(readFileSync(postPath, 'utf8')) as { url?: unknown };
+if (typeof post.url !== 'string' || !POST_URL.test(post.url)) {
+  console.error(`POST.json does not name an X post's address: ${postPath}`);
+  process.exit(1);
+}
+
 mkdirSync(OUTPUT_DIR, { recursive: true });
 try {
-  copyFileSync(join(BOT_DIR, 'POST.json'), join(OUTPUT_DIR, 'POST.json'));
+  copyFileSync(postPath, join(OUTPUT_DIR, 'POST.json'));
 } catch (err) {
   console.error(`POST.json could not be copied from ${BOT_DIR}: ${(err as Error).message}`);
   process.exit(1);
